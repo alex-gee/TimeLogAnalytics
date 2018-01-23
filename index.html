@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Titel</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+
+      var days = [];
+      function setupFileUpload() {
+        if (window.File && window.FileReader && window.FileList && window.Blob) {
+        } else {
+          alert('The File APIs not supported browser.');
+        }
+      }
+
+
+      function handleFiles(fileList){
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          parse(reader.result);
+          drawChart();
+        }
+        reader.readAsText(fileList[0]);
+      }
+
+      function parse(content){
+        var day_matcher = /^### \d\d.\d\d.\d{4}/;
+        var start_time_matcher = /> Start (\d\d:\d\d)/;
+        var end_time_matcher = /> Ende (\d\d:\d\d)/;
+        var blocks_matcher = /^-.*/;
+
+        lines = content.split('\n');
+
+        // The days
+        //var days = [];
+        var blocks = [];
+
+        var curStartTime = null;
+
+        lines.forEach(function(line){
+          console.log(line);
+
+          // Match days
+          if(day_matcher.test(line)){
+            days.push({'date':createDay(line)});
+
+            // Reset blocks
+            blocks  = [];
+          }
+
+          // Match start time
+          if(start_time_matcher.test(line)){
+            var start_time = line.match(start_time_matcher)[1];
+            days[days.length - 1]['start_time'] = start_time;
+            curStartTime = start_time;
+          }
+
+          // Match end time
+          if(end_time_matcher.test(line)){
+            days[days.length - 1]['end_time'] = line.match(end_time_matcher)[1];
+          }
+
+          // Match blocks
+          if(blocks_matcher.test(line)){
+            blocks.push(createBlock(line, curStartTime));
+          }
+
+          if(blocks.length > 0){
+            curStartTime = blocks[blocks.length - 1]['end_time'];
+          }
+
+          days[days.length - 1]['blocks'] = blocks;
+
+        });
+
+        evaluate(days);
+      }
+
+      function createBlock(line, active_start_time){
+        // Seperate content and data
+        var block = new Object();
+        var matching = line.match(/^-(.*)\[(.*)\]/);
+        block['content'] = matching[1].trim();
+        var dataPart = matching[2];
+
+        var dataPartList = dataPart.split(',');
+
+        // First part should be the start time
+        block['start_time'] = active_start_time;
+        block['end_time'] = dataPartList[0].match(/- (\d\d:\d\d)/)[1];
+
+        block['project_code'] = dataPartList[1];
+
+        return block;
+      }
+
+      function createDay(line){
+        var ex = /^### (\d\d.\d\d.\d{4})/;
+        var result = line.match(ex);
+        return result[1];
+      }
+
+      function evaluate(days){
+        // Count the hours spent on each project_code
+        days.forEach(function(day){
+          day['total_time_accounted'] = 0;
+          for (var i = 0; i < day['blocks'].length; i++) {
+            day['blocks'][i]['duration'] = blockDuration(day['blocks'][i]);
+            day['total_time_accounted'] += day['blocks'][i]['duration'];
+          }
+
+        });
+      }
+
+      function getTime(block, field_name){
+        var values = block[field_name].match(/(\d\d):(\d\d)/);
+        return new Date(0,0,0,values[1],values[2]);
+      }
+
+      function getStartTime(block){
+        return getTime(block, 'start_time');
+      }
+
+      function getEndTime(block){
+        return getTime(block, 'end_time');
+      }
+
+      function blockDuration(block){
+        return  (getEndTime(block) - getStartTime(block))/(1000 * 60);
+      }
+
+  google.charts.load("current", {packages:["timeline"]});
+  //google.charts.setOnLoadCallback(drawChart);
+  function drawChart() {
+
+    var container = document.getElementById('chart');
+    var chart = new google.visualization.Timeline(container);
+    var dataTable = new google.visualization.DataTable();
+    dataTable.addColumn({ type: 'string', id: 'Date' });
+    dataTable.addColumn({ type: 'string', id: 'Name' });
+    dataTable.addColumn({ type: 'date', id: 'Start' });
+    dataTable.addColumn({ type: 'date', id: 'End' });
+
+    days.forEach(function(day){
+      for (var i = 0; i < day['blocks'].length; i++) {
+        dataTable.addRow([ day['date'], day['blocks'][i]['project_code'], getStartTime(day['blocks'][i]), getEndTime(day['blocks'][i]) ]);
+      }
+    });
+
+    var options = {
+      hAxis: {
+        minValue: new Date(0, 0, 0, 6, 0),
+        maxValue: new Date(0, 0, 0, 20, 0),
+        format: 'HH:mm'
+      },
+      timeline: {tooltipDateFormat: 'HH:mm' }
+    };
+    chart.draw(dataTable,options);
+  }
+</script>
+  </head>
+  <body onload="setupFileUpload()">
+    <input type="file" id="input" onchange="handleFiles(this.files)">
+    <div id="chart" style="height: 600px;"></div>
+  </body>
+</html>
