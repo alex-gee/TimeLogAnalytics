@@ -71,7 +71,10 @@
             curStartTime = blocks[blocks.length - 1]['end_time'];
           }
 
-          days[days.length - 1]['blocks'] = blocks;
+          if(days.length > 0){
+            days[days.length - 1]['blocks'] = blocks;
+          }
+
 
         });
 
