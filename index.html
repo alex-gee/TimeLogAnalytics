@@ -27,8 +27,8 @@
 
       function parse(content){
         var day_matcher = /^### \d\d.\d\d.\d{4}/;
-        var start_time_matcher = /> Start (\d\d:\d\d)/;
-        var end_time_matcher = /> Ende (\d\d:\d\d)/;
+        var start_time_matcher = /> Start (\d\d[:|.]\d\d)/;
+        var end_time_matcher = /> Ende (\d\d[:|.]\d\d)/;
         var blocks_matcher = /^-.*/;
 
         lines = content.split('\n');
@@ -89,7 +89,7 @@
 
         // First part should be the start time
         block['start_time'] = active_start_time;
-        block['end_time'] = dataPartList[0].match(/- (\d\d:\d\d)/)[1];
+        block['end_time'] = dataPartList[0].match(/- (\d\d[:|.]\d\d)/)[1];
 
         block['project_code'] = dataPartList[1];
 
@@ -115,7 +115,7 @@
       }
 
       function getTime(block, field_name){
-        var values = block[field_name].match(/(\d\d):(\d\d)/);
+        var values = block[field_name].match(/(\d\d)[:|.](\d\d)/);
         return new Date(0,0,0,values[1],values[2]);
       }
 
